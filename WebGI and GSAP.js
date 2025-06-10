@@ -1,28 +1,22 @@
-// webgi-scroll.js – Smooth GSAP scroll camera control for WebGI
+// webgi-scroll.js
+import gsap from "https://cdn.jsdelivr.net/npm/gsap@3.12.2/dist/gsap.min.js";
+import ScrollTrigger from "https://cdn.jsdelivr.net/npm/gsap@3.12.2/dist/ScrollTrigger.min.js";
 
-import { ScrollTrigger } from "https://cdn.jsdelivr.net/npm/gsap@3.12.2/all.js";
+gsap.registerPlugin(ScrollTrigger);
 
-window.scrollTo(0, 0);
 document.addEventListener("DOMContentLoaded", () => {
   const el = document.getElementById("viewer-3d");
-  if (!el) {
-    console.warn("[WebGI] #viewer-3d missing");
-    return;
-  }
+  if (!el) return;
 
   el.addEventListener("initialized", () => {
     const viewer = el.viewer;
-    if (!viewer) {
-      console.error("[WebGI] viewer instance unavailable");
-      return;
-    }
+    if (!viewer) return;
 
     const cam = viewer.scene.activeCamera;
     const pos = cam.position;
     const target = cam.target;
 
     cam.setCameraOptions({ controlsEnabled: false });
-    gsap.registerPlugin(ScrollTrigger);
 
     let needsUpdate = false;
     const markDirty = () => {
@@ -47,7 +41,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     sections.forEach(section => {
       const elem = document.querySelector(section.sel);
-      if (!elem) return console.warn(`Missing ${section.sel}`);
+      if (!elem) return;
       gsap.to(pos, {
         ...section.p,
         scrollTrigger: {
