@@ -1,66 +1,70 @@
-// webgi-scroll.js
+/* webgi-scroll.js  ── final, TDZ-safe and CSP-safe */
 import gsap from "https://cdn.jsdelivr.net/npm/gsap@3.12.2/dist/gsap.min.js";
 import ScrollTrigger from "https://cdn.jsdelivr.net/npm/gsap@3.12.2/dist/ScrollTrigger.min.js";
 
 gsap.registerPlugin(ScrollTrigger);
 
 document.addEventListener("DOMContentLoaded", () => {
-  const el = document.getElementById("viewer-3d");
-  if (!el) return;
+  const viewerEl = document.getElementById("viewer-3d");
+  if (!viewerEl) return;
 
-  el.addEventListener("initialized", () => {
-    const viewer = el.viewer;
-    if (!viewer) return;
-
-    const cam = viewer.scene.activeCamera;
-    const pos = cam.position;
-    const target = cam.target;
+  viewerEl.addEventListener("initialized", () => {
+    const viewer = viewerEl.viewer;
+    const cam    = viewer.scene.activeCamera;
+    const pos    = cam.position;
+    const tar    = cam.target;
 
     cam.setCameraOptions({ controlsEnabled: false });
 
-    let needsUpdate = false;
+    /* 1️⃣  declare the flag EARLY */
+    let dirty = false;
+
+    /* 2️⃣ helper that sets the flag */
     const markDirty = () => {
-      needsUpdate = true;
+      dirty = true;
       viewer.setDirty();
     };
 
+    /* 3️⃣ one preFrame listener */
     viewer.addEventListener("preFrame", () => {
-      if (needsUpdate) {
+      if (dirty) {
         cam.positionUpdated(true);
         cam.positionTargetUpdated(true);
-        needsUpdate = false;
+        dirty = false;
       }
     });
 
+    /* 4️⃣ build tweens AFTER flag + helper exist */
     const sections = [
-      { sel: ".section-2", p: { x: -3, y: 0.3, z: 5.3 }, t: { x: -0.5, y: -0.1, z: 0.1 } },
-      { sel: ".section-3", p: { x: -1.7, y: -0.25, z: -4.6 }, t: { x: -0.7, y: -0.25, z: -0.2 } },
-      { sel: ".section-4", p: { x: -2.4, y: 6.5, z: -0.08 }, t: { x: -0.25, y: -0.25, z: -0.09 } },
-      { sel: ".section-5", p: { x: -0.01, y: 0.6, z: 3.8 }, t: { x: -0.003, y: -0.4, z: 0.41 } },
+      { s: ".section-2", p: { x:-3,   y:0.3,  z: 5.3 }, t:{ x:-0.5, y:-0.1, z:0.1  } },
+      { s: ".section-3", p: { x:-1.7, y:-0.25,z:-4.6 }, t:{ x:-0.7, y:-0.25,z:-0.2 } },
+      { s: ".section-4", p: { x:-2.4, y:6.5,  z:-0.08}, t:{ x:-0.25,y:-0.25,z:-0.09} },
+      { s: ".section-5", p: { x:-0.01,y:0.6,  z: 3.8 }, t:{ x:-0.003,y:-0.4,z:0.41} },
     ];
 
-    sections.forEach(section => {
-      const elem = document.querySelector(section.sel);
-      if (!elem) return;
+    sections.forEach(({ s, p, t }) => {
+      if (!document.querySelector(s)) return;
+
       gsap.to(pos, {
-        ...section.p,
-        scrollTrigger: {
-          trigger: section.sel,
-          start: "top bottom",
-          end: "top top",
-          scrub: true,
-        },
+        ...p,
         onUpdate: markDirty,
+        scrollTrigger:{
+          trigger: s,
+          start:   "top bottom",
+          end:     "top top",
+          scrub:   true,
+        },
       });
-      gsap.to(target, {
-        ...section.t,
-        scrollTrigger: {
-          trigger: section.sel,
-          start: "top bottom",
-          end: "top top",
-          scrub: true,
-        },
+
+      gsap.to(tar, {
+        ...t,
         onUpdate: markDirty,
+        scrollTrigger:{
+          trigger: s,
+          start:   "top bottom",
+          end:     "top top",
+          scrub:   true,
+        },
       });
     });
 
