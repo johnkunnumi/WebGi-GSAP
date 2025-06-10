@@ -1,134 +1,89 @@
+/*  webgi-scroll.js  – GSAP ScrollTrigger + WebGI camera animation
+   --------------------------------------------------------------
+   Works with WebGI runtime v0.11.0 (https://dist.pixotronics.com/webgi/runtime/viewer-0.11.0.js)
+   and GSAP 3.12.x.
+*/
+
 import { ScrollTrigger } from "https://cdn.jsdelivr.net/npm/gsap@3.12.2/all.js";
 
-// Ensure scroll starts at top
+/* Scroll to top on hard refresh (optional) */
 window.scrollTo(0, 0);
 
-// Wait for Webflow DOM to be ready
-window.addEventListener("DOMContentLoaded", () => {
-  const element = document.getElementById("viewer-3d");
+/* Wait for the DOM, then wire up WebGI once the viewer fires “initialized” */
+document.addEventListener("DOMContentLoaded", () => {
+  const viewerEl = document.getElementById("viewer-3d");
+  if (!viewerEl) return console.warn("No #viewer-3d element found.");
 
-  if (!element) {
-    console.error("viewer-3d element not found.");
-    return;
-  }
+  viewerEl.addEventListener("initialized", () => {
+    const viewer  = viewerEl.viewer;
+    const camera  = viewer.scene.activeCamera;
+    const pos     = camera.position;
+    const target  = camera.target;
 
-  // Listen for WebGI initialized event
-  element.addEventListener("initialized", () => {
-    const viewer = element.viewer;
-    const manager = viewer.getManager();
-    const camera = viewer.scene.activeCamera;
-    const position = camera.position;
-    const target = camera.target;
+    /* Disable OrbitControls so only ScrollTrigger drives the camera */
+    camera.setCameraOptions({ controlsEnabled: false });
 
-    viewer.scene.activeCamera.setCameraOptions({ controlsEnabled: false });
-
+    /* Register GSAP plugin (global gsap already exposed by the import above) */
     gsap.registerPlugin(ScrollTrigger);
 
-    const tl = gsap.timeline();
-
-    // Animation timeline
-    tl.to(position, {
-      x: -3,
-      y: 0.3,
-      z: 5.3,
-      scrollTrigger: {
-        trigger: ".section-2",
-        start: "top bottom",
-        end: "top top",
-        scrub: true,
-      },
-      onUpdate,
-    }).to(target, {
-      x: -0.5,
-      y: -0.1,
-      z: 0.1,
-      scrollTrigger: {
-        trigger: ".section-2",
-        start: "top bottom",
-        end: "top top",
-        scrub: true,
-      },
-    }).to(position, {
-      x: -1.7,
-      y: -0.25,
-      z: -4.6,
-      scrollTrigger: {
-        trigger: ".section-3",
-        start: "top bottom",
-        end: "top top",
-        scrub: true,
-      },
-      onUpdate,
-    }).to(target, {
-      x: -0.7,
-      y: -0.25,
-      z: -0.2,
-      scrollTrigger: {
-        trigger: ".section-3",
-        start: "top bottom",
-        end: "top top",
-        scrub: true,
-      },
-    }).to(position, {
-      x: -2.4,
-      y: 6.5,
-      z: -0.08,
-      scrollTrigger: {
-        trigger: ".section-4",
-        start: "top bottom",
-        end: "top top",
-        scrub: true,
-      },
-      onUpdate,
-    }).to(target, {
-      x: -0.25,
-      y: -0.25,
-      z: -0.09,
-      scrollTrigger: {
-        trigger: ".section-4",
-        start: "top bottom",
-        end: "top top",
-        scrub: true,
-      },
-    }).to(position, {
-      x: -0.01,
-      y: 0.6,
-      z: 3.8,
-      scrollTrigger: {
-        trigger: ".section-5",
-        start: "top bottom",
-        end: "top top",
-        scrub: true,
-      },
-      onUpdate,
-    }).to(target, {
-      x: -0.003,
-      y: -0.4,
-      z: 0.41,
-      scrollTrigger: {
-        trigger: ".section-5",
-        start: "top bottom",
-        end: "top top",
-        scrub: true,
-      },
-    });
-
-    // Update logic
-    let needsUpdate = true;
-
-    function onUpdate() {
-      needsUpdate = true;
+    /* Flag & helper to force WebGI to re-render on every tween update */
+    let dirty = true;
+    function markDirty() {
+      dirty = true;
       viewer.setDirty();
     }
 
     viewer.addEventListener("preFrame", () => {
-      if (needsUpdate) {
+      if (dirty) {
         camera.positionUpdated(true);
         camera.positionTargetUpdated(true);
-        needsUpdate = false;
+        dirty = false;
       }
     });
 
+    /* ---------- SCROLL ANIMATION  ---------- */
+
+    const tl = gsap.timeline({ defaults: { ease: "none" } });
+
+    function addSection(section, newPos, newTarget) {
+      tl.to(pos, {
+        ...newPos,
+        onUpdate: markDirty,
+        scrollTrigger: {
+          trigger: section,
+          start: "top bottom",
+          end:   "top top",
+          scrub: true,
+        },
+      }).to(target, {
+        ...newTarget,
+        scrollTrigger: {
+          trigger: section,
+          start: "top bottom",
+          end:   "top top",
+          scrub: true,
+        },
+      });
+    }
+
+    /* Camera keyframes per section — edit to taste */
+    addSection(".section-2",
+      { x: -3,   y:  0.3, z:  5.3 },
+      { x: -0.5, y: -0.1, z:  0.1 });
+
+    addSection(".section-3",
+      { x: -1.7, y: -0.25, z: -4.6 },
+      { x: -0.7, y: -0.25, z: -0.2 });
+
+    addSection(".section-4",
+      { x: -2.4, y:  6.5,  z: -0.08 },
+      { x: -0.25,y: -0.25, z: -0.09 });
+
+    addSection(".section-5",
+      { x: -0.01,y:  0.6,  z:  3.8 },
+      { x: -0.003,y: -0.4, z:  0.41 });
+
+    /* Force ScrollTrigger to recalc once everything is ready */
     ScrollTrigger.refresh();
   });
 });
